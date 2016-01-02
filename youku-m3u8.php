@@ -50,13 +50,33 @@ function charAt($str, $index=0){
 
 
 if(!empty($_GET['vid'])){
+	$curl=curl_init();
+	curl_setopt($curl,CURLOPT_URL,'http://p.l.youku.com/ypvlog');
+	curl_setopt($curl,CURLOPT_ENCODING, 'gzip,deflate');
+	curl_setopt($curl,CURLOPT_HEADER,1);
+	curl_setopt($curl,CURLOPT_RETURNTRANSFER,1);
+	curl_setopt($curl,CURLOPT_TIMEOUT,10);
+	$return=curl_exec($curl);
+	$headerSize=curl_getinfo($curl, CURLINFO_HEADER_SIZE);
+	curl_close($curl);
+	$header=explode("\r\n",substr($return, 0, $headerSize));
+	foreach($header as $headeritem){
+		if(substr($headeritem,12,7)=='__ysuid')
+		$ysuid=substr($headeritem,20);
+	}
+	$cookie='';
+	if(!empty($ysuid)){
+		$ysuid=substr($ysuid,0,strpos($ysuid,';'));
+		$cookie='Cookie: __ysuid='.$ysuid.';';
+	}
+	
 	$vid=$_GET['vid'];
 	$link='http://play.youku.com/play/get.json?vid='.$vid.'&ct=12';
 	$curl=curl_init();
 	curl_setopt($curl,CURLOPT_URL,$link);
 	curl_setopt($curl,CURLOPT_ENCODING, 'gzip,deflate');
 	curl_setopt($curl,CURLOPT_HEADER,1);
-	curl_setopt($curl,CURLOPT_HTTPHEADER,array('Referer: http://v.youku.com/v_show/'.$vid.'.html?x',));
+	curl_setopt($curl,CURLOPT_HTTPHEADER,array('Referer: http://v.youku.com/v_show/'.$vid.'.html?x',$cookie));
 	curl_setopt($curl,CURLOPT_RETURNTRANSFER,1);
 	curl_setopt($curl,CURLOPT_TIMEOUT,10);
 	$return=curl_exec($curl);
