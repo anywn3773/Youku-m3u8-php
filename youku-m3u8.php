@@ -50,6 +50,7 @@ function charAt($str, $index=0){
 
 
 if(!empty($_GET['vid'])){
+	$vid=$_GET['vid'];
 	$curl=curl_init();
 	curl_setopt($curl,CURLOPT_URL,'http://p.l.youku.com/ypvlog');
 	curl_setopt($curl,CURLOPT_ENCODING, 'gzip,deflate');
@@ -64,35 +65,41 @@ if(!empty($_GET['vid'])){
 		if(substr($headeritem,12,7)=='__ysuid')
 		$ysuid=substr($headeritem,20);
 	}
-	$cookie='';
-	if(!empty($ysuid)){
-		$ysuid=substr($ysuid,0,strpos($ysuid,';'));
-		$cookie='Cookie: __ysuid='.$ysuid.';';
-	}
-	
-	$vid=$_GET['vid'];
-	$link='http://play.youku.com/play/get.json?vid='.$vid.'&ct=12';
 	$curl=curl_init();
-	curl_setopt($curl,CURLOPT_URL,$link);
+	curl_setopt($curl,CURLOPT_URL,'http://v.youku.com/v_show/id_'.$vid.'.html?x');
 	curl_setopt($curl,CURLOPT_ENCODING, 'gzip,deflate');
+	curl_setopt($curl,CURLOPT_HTTPHEADER,array('User-Agent: Mozilla/5.0 (iPod; CPU iPhone OS_5_1_1 like Mac OS X) AppleWebKit/534.46 (KHTML, like Gecko) Version/5.1 Mobile/9B206 Safari/7534.48.3'));
 	curl_setopt($curl,CURLOPT_HEADER,1);
-	curl_setopt($curl,CURLOPT_HTTPHEADER,array('Referer: http://v.youku.com/v_show/'.$vid.'.html?x',$cookie));
 	curl_setopt($curl,CURLOPT_RETURNTRANSFER,1);
 	curl_setopt($curl,CURLOPT_TIMEOUT,10);
 	$return=curl_exec($curl);
 	$headerSize=curl_getinfo($curl, CURLINFO_HEADER_SIZE);
 	curl_close($curl);
 	$header=explode("\r\n",substr($return, 0, $headerSize));
-	$retval=substr($return, $headerSize);
 	foreach($header as $headeritem){
-		$headerdetail=explode(": ",$headeritem);
-		if(!empty($headerdetail[1]))
-		$headerarray[$headerdetail[0]]=$headerdetail[1];
-		else
-		$headerarray[$headerdetail[0]]='';
+		if(substr($headeritem,12,4)=='ykss')
+		$ykss=substr($headeritem,20);
 	}
-	$cookies=explode('; ',$headerarray['Set-Cookie']);
-	$r_key=substr($cookies[0],3,-1);
+	$cookie='';
+	if(empty($ysuid)||empty($ykss)){
+		echo 'Fetch Required Cookie Failed';
+		exit;
+	}
+	$ysuid=substr($ysuid,0,strpos($ysuid,';'));
+	$ykss=substr($ykss,0,strpos($ykss,';'));
+	$cookie='Cookie: ykss='.$ykss.'; __ysuid='.$ysuid.';';
+	
+	$link='http://play.youku.com/play/get.json?vid='.$vid.'&ct=12';
+	$curl=curl_init();
+	curl_setopt($curl,CURLOPT_URL,$link);
+	curl_setopt($curl,CURLOPT_ENCODING, 'gzip,deflate');
+	curl_setopt($curl,CURLOPT_HEADER,0);
+	curl_setopt($curl,CURLOPT_HTTPHEADER,array('Referer: http://v.youku.com/v_show/'.$vid.'.html?x',$cookie));
+	curl_setopt($curl,CURLOPT_RETURNTRANSFER,1);
+	curl_setopt($curl,CURLOPT_TIMEOUT,10);
+	$retval=curl_exec($curl);
+	curl_close($curl);
+	
 	if(!empty($retval)){
 		$rs=json_decode($retval, true);
 		$ep=$rs['data']['security']['encrypt_string'];
@@ -102,7 +109,7 @@ if(!empty($_GET['vid'])){
 			list($sid, $token)=explode('_',yk_e('becaf9be', base64_decode($ep)));
 			$ep=urlencode(base64_encode(yk_e('bf7e5f01',$sid.'_'.$videoid.'_'.$token)));
 			$final_url='http://pl.youku.com/playlist/m3u8?ctype=12&ep='.$ep.'&ev=1&keyframe=1&oip='.$ip.'&sid='.$sid.'&token='.$token.'&vid='.$videoid.'&type=mp4';
-			echo $final_url."\n[Request With Cookie]: r=\"\"".urlencode($r_key).'""';
+			echo $final_url;
 		} else
 			echo 'Invalid vid.';
 	} else
